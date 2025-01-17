@@ -3,12 +3,10 @@
 # Install Node.js with specified version
 sudo /usr/local/bin/install-node.sh
 
-# Generate a unique runner name if not provided
-if [ -z "${RUNNER_NAME}" ]; then
-    # Get container ID
-    CONTAINER_ID=$(cat /proc/self/cgroup | grep -o -E '[0-9a-f]{64}' | tail -n1 | cut -c1-12)
-    RUNNER_NAME="runner-${CONTAINER_ID}"
-fi
+# Generate a unique runner name using hostname
+HOSTNAME=$(hostname)
+RUNNER_NAME="runner-${HOSTNAME}"
+echo "Configuring runner: ${RUNNER_NAME}"
 
 # Registration function using PAT
 registration_pat() {

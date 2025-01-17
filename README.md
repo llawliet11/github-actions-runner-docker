@@ -53,7 +53,7 @@ docker buildx build --platform linux/amd64 -t github-runner:latest --load .
 
 ### Starting Runners
 
-1. Start with default number of runners (3):
+1. Start with default 1 runner
 ```bash
 docker compose up -d
 ```
@@ -76,7 +76,7 @@ docker compose ps
 docker compose logs -f
 
 # Specific runner
-docker compose logs -f github-runner-1
+docker compose logs -f github-runner-xxx-1
 ```
 
 3. Stop runners:
@@ -188,3 +188,7 @@ docker compose down -v
 - Use secrets management for sensitive values in production
 - Regularly update the runner version for security patches
 - Review and limit the permissions granted to the GitHub PAT
+
+## FAQ
+- Does the container take too long to start? 
+Yeah, I'm a chill guy.
