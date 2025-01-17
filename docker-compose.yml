@@ -1,0 +1,36 @@
+services:
+  github-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        RUNNER_VERSION: ${RUNNER_VERSION:-2.321.0}
+    image: github-runner:latest
+    environment:
+      - RUNNER_REPO=${RUNNER_REPO}
+      - RUNNER_TOKEN=${RUNNER_TOKEN}
+      - NODE_VERSION=${NODE_VERSION}
+      - GITHUB_PAT=${GITHUB_PAT}
+      - GITHUB_OWNER=${GITHUB_OWNER}
+      - GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
+      - RUNNER_LABELS=${RUNNER_LABELS:-self-hosted}
+      # RUNNER_NAME will be set by the container
+    env_file:
+      - .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G
+    networks:
+      - runner-network
+
+networks:
+  runner-network:
+    driver: bridge
