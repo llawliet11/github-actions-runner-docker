@@ -6,7 +6,7 @@ ARG TARGETPLATFORM
 ARG TARGETARCH
 
 # Arguments that can be passed during build
-ARG RUNNER_VERSION="2.314.1"
+ARG RUNNER_VERSION="2.325.0"
 
 # Environment variables
 ENV GITHUB_PAT=""

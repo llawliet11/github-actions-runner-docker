@@ -1,16 +1,20 @@
 #!/bin/bash
 
 # Read Node.js version from environment variable or use default
-NODE_VERSION=${NODE_VERSION:-"18"}
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+export NVM_DIR="$HOME/.nvm"
+source "$NVM_DIR/nvm.sh"
 
-# Install Node.js
-curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
-apt-get install -y nodejs
+nvm install ${NODE_VERSION}
+nvm use ${NODE_VERSION}
+nvm alias default
 
 # Install Yarn
 npm install -g yarn
+npm install -g pnpm
 
 # Verify installations
 node --version
 npm --version
 yarn --version
+pnpm --version

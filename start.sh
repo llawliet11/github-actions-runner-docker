@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Install Node.js with specified version
-sudo /usr/local/bin/install-node.sh
+sudo -E /usr/local/bin/install-node.sh
 
 # Generate a unique runner name using hostname
 HOSTNAME=$(hostname)
