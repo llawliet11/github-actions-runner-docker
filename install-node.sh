@@ -10,8 +10,7 @@ nvm use ${NODE_VERSION}
 nvm alias default
 
 # Install Yarn
-npm install -g yarn
-npm install -g pnpm
+corepack enable yarn pnpm
 
 # Verify installations
 node --version
