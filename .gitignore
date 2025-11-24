@@ -99,3 +99,6 @@ astro/
 
 # PNPM
 .pnpm-store/
+
+# Custom scripts
+*script*.sh
