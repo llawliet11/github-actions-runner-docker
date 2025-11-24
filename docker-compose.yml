@@ -15,8 +15,8 @@ services:
       - GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
       - RUNNER_LABELS=${RUNNER_LABELS:-self-hosted}
       # RUNNER_NAME will be set by the container
-    env_file:
-      - .env
+    # env_file:
+    #   - .env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
