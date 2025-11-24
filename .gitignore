@@ -43,6 +43,9 @@ devenv.local.nix
 .env.production
 .env.test
 .env.*.local
+# Specific environment files with credentials
+.env.cisgenics
+.env.llab_dashboard
 
 # Logs & Debugging
 npm-debug.log*
