@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        RUNNER_VERSION: ${RUNNER_VERSION:-2.329.0}
+        RUNNER_VERSION: ${RUNNER_VERSION:-2.333.0}
     image: github-runner:latest
     environment:
       - RUNNER_REPO=${RUNNER_REPO}

@@ -6,7 +6,7 @@ ARG TARGETPLATFORM
 ARG TARGETARCH
 
 # Arguments that can be passed during build
-ARG RUNNER_VERSION="2.325.0"
+ARG RUNNER_VERSION="2.333.0"
 
 # Environment variables
 ENV GITHUB_PAT=""
@@ -16,7 +16,7 @@ ENV RUNNER_NAME=""
 ENV RUNNER_WORKDIR="_work"
 ENV RUNNER_GROUP="default"
 ENV RUNNER_LABELS=""
-ENV NODE_VERSION="18"
+ENV NODE_VERSION="22"
 
 # Install required packages and dependencies
 RUN apt-get update && apt-get install -y \
