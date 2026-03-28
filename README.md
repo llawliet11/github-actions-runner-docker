@@ -10,13 +10,15 @@ This repository contains Docker configurations for running self-hosted GitHub Ac
 
 ## Files Structure
 
-```
+```text
 .
 ├── Dockerfile
 ├── docker-compose.yml
+├── docker-compose.pull.yml
+├── docker-build.sh
 ├── install-node.sh
 ├── start.sh
-├── .env
+├── .env.sample
 └── README.md
 ```
 
@@ -34,7 +36,7 @@ RUNNER_VERSION=2.333.0
 RUNNER_LABELS=self-hosted
 
 # Node.js Configuration
-NODE_VERSION=20
+NODE_VERSION=22
 
 # GitHub Authentication (Recommended over RUNNER_TOKEN)
 GITHUB_PAT=your_personal_access_token
