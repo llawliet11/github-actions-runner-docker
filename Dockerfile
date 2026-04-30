@@ -6,7 +6,7 @@ ARG TARGETPLATFORM
 ARG TARGETARCH
 
 # Arguments that can be passed during build
-ARG RUNNER_VERSION="2.333.0"
+ARG RUNNER_VERSION="2.334.0"
 
 # Environment variables
 ENV GITHUB_PAT=""
@@ -38,8 +38,13 @@ RUN apt-get update && apt-get install -y \
 COPY --chown=root:root install-node.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/install-node.sh
 
-# Install AWS CLI v2
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+# Install AWS CLI v2 (multi-arch)
+RUN AWS_ARCH=$(case ${TARGETARCH:-amd64} in \
+        "amd64") echo "x86_64" ;; \
+        "arm64") echo "aarch64" ;; \
+        *) echo "x86_64" ;; \
+    esac) \
+    && curl "https://awscli.amazonaws.com/awscli-exe-linux-${AWS_ARCH}.zip" -o "awscliv2.zip" \
     && unzip awscliv2.zip \
     && sudo ./aws/install \
     && rm -rf aws awscliv2.zip

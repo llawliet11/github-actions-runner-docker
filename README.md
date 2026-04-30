@@ -32,7 +32,7 @@ Create a `.env` file with the following variables:
 # GitHub Runner Configuration
 RUNNER_REPO=https://github.com/your-org/your-repo
 RUNNER_TOKEN=your_runner_token  # Optional if using GITHUB_PAT
-RUNNER_VERSION=2.333.0
+RUNNER_VERSION=2.334.0
 RUNNER_LABELS=self-hosted
 
 # Node.js Configuration
