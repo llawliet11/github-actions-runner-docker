@@ -65,6 +65,26 @@ docker compose up -d
 docker compose up -d --scale github-runner=5
 ```
 
+> Note: `--scale=N` is passed on the CLI, not via a `replicas:` key. Preserve
+> `--scale=N` on every `up`/recreate or you silently drop back to 1 runner.
+
+### Robust ephemeral orchestration (recommended)
+
+`--ephemeral` + `restart: unless-stopped` + runner state living in the container
+layer is the root of the historical crash-loop. The hardened `start.sh` now
+self-heals that case, but the cleanest model is **one fresh container per job**:
+
+```bash
+# Foreground supervisor: a clean container (and clean writable layer) per job.
+./run-runner-supervisor.sh .env.cisgenics
+./run-runner-supervisor.sh .env.llab_dashboard
+```
+
+Run it under systemd / tmux / `nohup` (it stays in the foreground). Ctrl-C
+stops it after the current job. For N parallel runners, start N supervisors with
+distinct project names. With this model no state survives across jobs, so a
+stale registration or an interrupted self-update can never accumulate.
+
 ### Managing Runners
 
 1. View running containers:
@@ -148,7 +168,13 @@ jobs:
 
 ### Updating Runner Version
 
-1. Update `RUNNER_VERSION` in your `.env` file
+1. Update `RUNNER_VERSION` in your `.env` file **and keep it in sync with the
+   `ARG RUNNER_VERSION` default in the Dockerfile(s)** — the `.env` value
+   overrides the build arg, so a stale `.env` silently ships an old runner that
+   GitHub then forces to self-update on connect (a known crash-loop trigger).
+   Track the current release at
+   <https://github.com/actions/runner/releases/latest> (or automate the bump
+   with Renovate/Dependabot).
 2. Rebuild and restart the containers:
 ```bash
 docker compose down
@@ -176,6 +202,18 @@ docker compose down -v
 3. **AWS Authentication Issues**
     - Verify AWS role ARN and permissions
     - Check AWS credentials configuration
+
+4. **Container restarts forever (crash loop)**
+    - `Cannot configure the runner because it is already configured` - a stale
+      `.runner` from a prior run in the persisted layer. The hardened `start.sh`
+      clears `.runner`/`.credentials*` before configuring; if you see this on an
+      old image, rebuild so the fix is baked in.
+    - `./bin/Runner.Listener: No such file or directory` / `exit code 127` - an
+      interrupted runner self-update left `bin/` missing. `start.sh` self-heals
+      from the newest `bin.*` backup; the durable fix is to keep
+      `RUNNER_VERSION` current (see Maintenance) so no auto-update is triggered.
+    - For a model where neither can accumulate, use the supervisor (see
+      "Robust ephemeral orchestration").
 
 ## Notes
 

@@ -34,6 +34,37 @@ else
     exit 1
 fi
 
+# --- Idempotent guard -------------------------------------------------------
+# With a restart policy + --ephemeral, the same container layer can outlive a
+# job and keep a stale .runner file. config.sh would then abort with
+# "Cannot configure the runner because it is already configured", and the
+# container would crash-loop. Clearing the local registration first makes every
+# (re)start a clean configure. (--replace only fixes the GitHub-side conflict,
+# not this local guard.)
+rm -f .runner .credentials .credentials_rsaparams 2>/dev/null || true
+
+# --- Self-heal bin/ ---------------------------------------------------------
+# A forced runner self-update runs `mv bin bin.<old>; mv bin.<new> bin`. If that
+# swap is interrupted (container restart mid-update) bin/ goes missing and
+# run.sh dies with `./bin/Runner.Listener: No such file or directory` (exit 127).
+# Restore bin/ from the newest bin.* backup, or re-extract a bundled tarball.
+if [ ! -x ./bin/Runner.Listener ]; then
+    echo "bin/Runner.Listener missing - attempting self-heal"
+    newest_bin=$(ls -d bin.* 2>/dev/null | sort -V | tail -n1)
+    tarball=$(ls actions-runner-linux-*.tar.gz 2>/dev/null | sort -V | tail -n1)
+    if [ -n "${newest_bin}" ] && [ -x "${newest_bin}/Runner.Listener" ]; then
+        echo "Restoring bin/ from ${newest_bin}"
+        rm -rf bin && cp -a "${newest_bin}" bin
+    elif [ -n "${tarball}" ]; then
+        echo "Re-extracting runner from ${tarball}"
+        tar xzf "${tarball}"
+    else
+        echo "ERROR: cannot self-heal bin/ (no bin.* backup, no tarball)." >&2
+        echo "       Recreate the container from the image to recover." >&2
+        exit 1
+    fi
+fi
+
 # Configure the runner
 ./config.sh \
     --url "https://github.com/${GITHUB_OWNER}/${GITHUB_REPOSITORY}" \
