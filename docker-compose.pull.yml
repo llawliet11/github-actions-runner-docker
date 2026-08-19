@@ -6,6 +6,9 @@ services:
       args:
         RUNNER_VERSION: ${RUNNER_VERSION:-2.334.0}
     image: ${REGISTRY_URL}/github-runner:${RUNNER_VERSION}
+    # Do NOT add `container_name:` here. A fixed name lets Docker restart the
+    # SAME container, so an --ephemeral runner re-registers its name over a
+    # registration GitHub still believes is busy and then never gets work.
     environment:
       - RUNNER_REPO=${RUNNER_REPO}
       - RUNNER_TOKEN=${RUNNER_TOKEN}
@@ -19,7 +22,10 @@ services:
       - .env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    restart: unless-stopped
+    # Load-bearing: --ephemeral exits after ONE job, so the restart policy is
+    # what brings the next runner up. Safe because start.sh clears the stale
+    # .runner/.credentials* state on every start. See docker-compose.yml.
+    restart: ${RUNNER_RESTART_POLICY:-unless-stopped}
     deploy:
       mode: replicated
       update_config:

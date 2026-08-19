@@ -35,6 +35,11 @@ coverage/
 devenv.local.nix
 
 # Environment and configuration
+# Per-clone compose customisation. Compose auto-merges this on top of
+# docker-compose.yml, so host-specific tweaks never touch the tracked template
+# and never conflict with `git pull`.
+docker-compose.override.yml
+docker-compose.override.yaml
 .direnv
 .pre-commit-config.yaml
 .env
@@ -103,6 +108,7 @@ astro/
 .local/
 CLAUDE.local.md
 .claude/settings.local.json
+.claude/scratchpad/
 .cursorignore
 .cursorindexingignore
 .codeiumignore

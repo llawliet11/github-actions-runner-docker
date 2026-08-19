@@ -5,7 +5,20 @@ services:
       dockerfile: ${DOCKERFILE:-Dockerfile}
       args:
         RUNNER_VERSION: ${RUNNER_VERSION:-2.334.0}
-    image: github-runner:latest
+    # One image per compose project, deliberately NOT a shared `:latest`.
+    # Several clones of this repo on the same host all rebuilding
+    # `github-runner:latest` swap the image out from under each other.
+    # COMPOSE_PROJECT_NAME defaults to the clone's directory name (and follows
+    # `-p` when run-runner-supervisor.sh sets one), so every runner directory
+    # gets a distinct tag for free. Set RUNNER_IMAGE_TAG in the env file to pin
+    # a tag, or to `latest` to opt back into one shared image on purpose.
+    image: github-runner:${RUNNER_IMAGE_TAG:-${COMPOSE_PROJECT_NAME:-latest}}
+    # Do NOT add `container_name:` here, and do not add it in an override.
+    # A fixed name is actively harmful for an --ephemeral runner: it lets Docker
+    # restart the SAME container, so the same runner name re-registers over a
+    # registration GitHub still believes is busy. The symptom is a runner
+    # logging "Listening for Jobs" while the API reports it offline/busy and
+    # never hands it work. Use a distinct compose project (`-p`) per runner.
     environment:
       - RUNNER_REPO=${RUNNER_REPO}
       - RUNNER_TOKEN=${RUNNER_TOKEN}
@@ -19,7 +32,16 @@ services:
     #   - .env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    restart: unless-stopped
+    # Service-model only, and load-bearing there. --ephemeral makes the runner
+    # exit after ONE job, so the restart policy is what brings the next one up:
+    # without it `up -d` gives you exactly one job, ever.
+    # The historical crash-loop was never the policy itself, it was the state
+    # the policy preserved in the container layer across restarts. start.sh now
+    # clears .runner/.credentials* and self-heals a half-swapped bin/ on every
+    # start, so a restart is a clean re-configure. Under the supervisor model
+    # (`docker compose run --rm`, see README) this key is ignored entirely.
+    # Set RUNNER_RESTART_POLICY=no to opt out.
+    restart: ${RUNNER_RESTART_POLICY:-unless-stopped}
     deploy:
       resources:
         limits:

@@ -1,0 +1,41 @@
+# Templated systemd USER unit for the ephemeral runner supervisor.
+#
+# The instance name (%i) is the runner's clone directory name, e.g.
+# `github-runner@kisstour-sites` -> ~/projects/WORKERS/kisstour-sites.
+#
+# Install (per user, no root):
+#   mkdir -p ~/.config/systemd/user
+#   cp systemd/github-runner@.service ~/.config/systemd/user/
+#   loginctl enable-linger "$USER"          # keep it running with no session
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now github-runner@<runner-dir>
+#
+# Different clone root, or an env file other than .env:
+#   systemctl --user edit github-runner@<runner-dir>
+# and set WorkingDirectory / ExecStart / RUNNER_ENV_FILE in the drop-in.
+
+[Unit]
+Description=Ephemeral GitHub Actions runner supervisor (%i)
+Documentation=https://github.com/llawliet11/github-actions-runner-docker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/projects/WORKERS/%i
+Environment=RUNNER_ENV_FILE=.env
+# Optional per-instance overrides (missing file is not an error).
+EnvironmentFile=-%h/.config/github-runner/%i.env
+ExecStart=%h/projects/WORKERS/%i/run-runner-supervisor.sh ${RUNNER_ENV_FILE} runner-%i
+
+# The supervisor traps SIGTERM and exits after the CURRENT job finishes, so
+# send it only to the main process and give that job room to complete.
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=900
+
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=default.target
