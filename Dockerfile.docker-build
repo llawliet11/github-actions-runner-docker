@@ -8,6 +8,12 @@ ARG TARGETARCH
 # Arguments that can be passed during build
 ARG RUNNER_VERSION="2.334.0"
 
+# GID of the HOST's /var/run/docker.sock, baked in so the in-image `docker`
+# group matches it. Find it with: stat -c '%g' /var/run/docker.sock
+# Runtime `group_add:` in docker-compose.yml is the portable override when a
+# host differs from the image it was handed.
+ARG DOCKER_GID=999
+
 # Environment variables
 ENV GITHUB_PAT=""
 ENV GITHUB_OWNER=""
@@ -62,9 +68,21 @@ RUN AWS_ARCH=$(case ${TARGETARCH:-amd64} in \
     && rm -rf aws awscliv2.zip
 
 # Create a user for the runner and grant docker socket access
+# `groupadd -f docker` alone is NOT deterministic here: docker-ce-cli's postinst
+# may already have created a `docker` group, and both `-f` and `-f -g <gid>`
+# then exit 0 WITHOUT applying the GID - leaving the group on whatever number
+# it happened to get. Observed across builds of this very file: GID 1001 in one
+# image, 988 in two others. A runner built that way starts fine and only fails
+# once a job declares `services:` containers, with "permission denied" on
+# /var/run/docker.sock. Force the GID explicitly instead; `-o` allows it to
+# collide with an existing group, which is fine for a supplementary group.
 RUN useradd -m -s /bin/bash runner \
     && usermod -aG sudo runner \
-    && groupadd -f docker \
+    && if getent group docker >/dev/null; then \
+           groupmod -o -g "${DOCKER_GID}" docker; \
+       else \
+           groupadd -o -g "${DOCKER_GID}" docker; \
+       fi \
     && usermod -aG docker runner \
     && echo "runner ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 

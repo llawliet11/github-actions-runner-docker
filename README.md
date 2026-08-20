@@ -77,6 +77,7 @@ Everything that differs per runner is driven from the env file instead:
 | `DOCKERFILE` | `Dockerfile` | `Dockerfile.docker-build` for jobs that need the docker CLI. |
 | `RUNNER_LABELS` | `self-hosted` | Labels this runner registers with. |
 | `RUNNER_VERSION` | `2.334.0` | Keep in sync with the `ARG RUNNER_VERSION` default - see [Maintenance](#updating-runner-version). |
+| `DOCKER_SOCK_GID` | `999` | GID of this host's `/var/run/docker.sock`. Required for any repo whose jobs declare `services:` containers - see [Jobs that use `services:` containers](#jobs-that-use-services-containers). |
 
 For anything the table does not cover, add a `docker-compose.override.yml` next
 to the compose file. Compose merges it automatically on every command, and it is
@@ -99,6 +100,40 @@ services:
 > Compose deep-merges, so a partial `limits:` block leaves the template's
 > `reservations:` untouched - override both or you can end up reserving more
 > than you allow.
+
+### Jobs that use `services:` containers
+
+A workflow with a `services:` block makes the runner create those containers as
+**siblings**, through the mounted docker socket - not as children. Two
+consequences, neither of which the defaults cover:
+
+**1. The socket's group.** The socket is owned by a group on the *host*; the
+`docker` group baked into the image is a different thing and cannot be relied on
+to match. Set `DOCKER_SOCK_GID` in the env file to the real value
+(`stat -c '%g' /var/run/docker.sock`). Symptom when it is wrong: the runner
+starts and idles happily, then the first job with a `services:` block dies at
+`Initialize containers` with `permission denied ... /var/run/docker.sock`.
+
+**2. Host networking.** Sibling containers publish their ports on the *host*
+network namespace, so a job talking to `localhost:<port>` only reaches them if
+the runner shares that namespace. Add it as an override:
+
+```yaml
+# docker-compose.override.yml
+services:
+  github-runner:
+    network_mode: host
+```
+
+The template deliberately declares no `networks:` key so this stays a one-line
+override - compose refuses `network_mode` and `networks` together, and a merge
+can add keys but never remove them.
+
+> Host networking puts every such runner in **one shared host port space**. It is
+> safe with a single `--ephemeral` runner because jobs run one at a time. Before
+> scaling past one replica, give the service containers distinct host ports, or
+> publish only the container port and resolve the assigned one at runtime with
+> `${{ job.services.<id>.ports['<port>'] }}`.
 
 ### Never set `container_name`
 
@@ -123,10 +158,20 @@ git pull origin main
 cat ../"${PWD##*/}"-compose.local.patch      # re-read: most of it is now redundant
 ```
 
-Then move whatever was genuinely needed into the env file or
-`docker-compose.override.yml`. Typical outcomes: a hand-edited `image:` tag needs
-no replacement (the new default already derives a unique tag per clone), and a
-`container_name:` should simply be dropped. Verify before rebuilding:
+Then re-express each edit. Most local edits on a working runner are load-bearing
+- treat them as requirements to translate, not as noise to discard:
+
+| Local edit | Where it goes now |
+| --- | --- |
+| `dockerfile: Dockerfile.docker-build` | `DOCKERFILE=Dockerfile.docker-build` in the env file |
+| a distinct `image:` tag | nothing to do - the default already derives one per clone |
+| `network_mode: host` | `docker-compose.override.yml` (the template no longer declares `networks:`, so this now merges cleanly) |
+| `group_add: ["<gid>"]` | `DOCKER_SOCK_GID=<gid>` in the env file |
+| raised `deploy.resources` | `docker-compose.override.yml` |
+| `container_name:` | **drop it** - this one really is harmful, see above |
+| `RUNNER_NAME` passthrough | drop it; `start.sh` derives the name from the container hostname and ignores the variable |
+
+Verify before rebuilding:
 
 ```bash
 docker compose config | grep -E 'image:|restart:|container_name:'

@@ -5,6 +5,7 @@ services:
       dockerfile: ${DOCKERFILE:-Dockerfile}
       args:
         RUNNER_VERSION: ${RUNNER_VERSION:-2.334.0}
+        DOCKER_GID: ${DOCKER_SOCK_GID:-999}
     # One image per compose project, deliberately NOT a shared `:latest`.
     # Several clones of this repo on the same host all rebuilding
     # `github-runner:latest` swap the image out from under each other.
@@ -32,6 +33,16 @@ services:
     #   - .env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    # Grant the runner the HOST's docker.sock group at runtime. The in-image
+    # `docker` group cannot be trusted to match: the socket's GID is a property
+    # of the host, not of the build. A GID that exists in neither passwd nor
+    # group is still applied, so a wrong value here is inert rather than fatal -
+    # but the right one is required for any job that declares `services:`
+    # containers, which otherwise fail `Initialize containers` with
+    # "permission denied ... /var/run/docker.sock".
+    # Find it with: stat -c '%g' /var/run/docker.sock
+    group_add:
+      - "${DOCKER_SOCK_GID:-999}"
     # Service-model only, and load-bearing there. --ephemeral makes the runner
     # exit after ONE job, so the restart policy is what brings the next one up:
     # without it `up -d` gives you exactly one job, ever.
@@ -50,9 +61,11 @@ services:
         reservations:
           cpus: "1.5"
           memory: 2G
-    networks:
-      - runner-network
-
-networks:
-  runner-network:
-    driver: bridge
+    # No `networks:` key on purpose. This is a single-service compose file, so a
+    # dedicated bridge buys nothing (the runner only makes outbound calls to
+    # GitHub and talks to the mounted docker socket) - and declaring one makes
+    # `network_mode: host` impossible to add from docker-compose.override.yml,
+    # because compose rejects the two together and a merge can add keys but
+    # never remove them. Runners whose jobs use `services:` containers need host
+    # networking so the job's `localhost:<port>` reaches those sibling
+    # containers; leaving this out keeps that a one-line override.
